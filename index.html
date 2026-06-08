@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PixelShard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Material Symbols Rounded -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+    <!-- JSZip -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- FileSaver -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        
+        .material-symbols-rounded {
+            font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            /* iOS 16+ Wallpaper Abstract Gradient */
+            background: radial-gradient(circle at 0% 0%, #dbeafe 0%, #eff6ff 50%, #f0f9ff 100%);
+            background-attachment: fixed;
+        }
+
+        /* iOS Toggle Switch */
+        .ios-toggle {
+            appearance: none;
+            width: 52px;
+            height: 32px;
+            background: #e5e7eb;
+            border-radius: 9999px;
+            position: relative;
+            cursor: pointer;
+            outline: none;
+            transition: background 0.3s ease;
+        }
+        .ios-toggle::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 28px;
+            height: 28px;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .ios-toggle:checked {
+            background: #007aff; /* iOS Blue */
+        }
+        .ios-toggle:checked::after {
+            transform: translateX(20px);
+        }
+
+        /* Glassmorphism Card */
+        .ios-card {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 10px 40px -10px rgba(0,0,0,0.05);
+            border-radius: 40px;
+        }
+
+        /* iOS Input Field */
+        .ios-input {
+            background: #f3f4f6; /* Gray-100 */
+            border: none;
+            border-radius: 9999px; /* Full pill shape */
+            transition: background 0.2s;
+        }
+        .ios-input:focus {
+            background: #e5e7eb; /* Gray-200 */
+            outline: none;
+            box-shadow: 0 0 0 2px #007aff20;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2.5px solid rgba(255,255,255,0.3);
+            border-top: 2.5px solid white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Smooth Fade */
+        .fade-enter {
+            animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* View Transitions API (丝滑Tab切换核心) */
+        ::view-transition-old(root),
+        ::view-transition-new(root) {
+            animation-duration: 0.4s;
+            animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        ::view-transition-old(root) {
+            animation-name: fadeOut;
+        }
+        ::view-transition-new(root) {
+            animation-name: fadeIn;
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
+        /* Hide Scrollbar for horizontal scrolling if needed */
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen pb-32">
+
+    <!-- 重新设计的 iOS 悬浮导航栏 (高通透低模糊) -->
+    <div class="fixed bottom-8 left-0 right-0 z-50 px-4 flex justify-center pointer-events-none fade-enter">
+        <div class="bg-white/20 backdrop-blur-[8px] p-1.5 rounded-[40px] flex justify-around shadow-[0_8px_30px_rgb(0,0,0,0.05)] border border-white/40 w-full max-w-[240px] pointer-events-auto items-center">
+            
+            <!-- 加密生成 选项卡 -->
+            <button onclick="app.switchTab('generate')" id="tab-gen" class="w-[96px] py-2 flex flex-col items-center justify-center rounded-[32px] bg-white shadow-[0_4px_10px_rgba(0,0,0,0.08)] text-blue-600 transition-all duration-300">
+                <span class="material-symbols-rounded text-[26px] mb-0.5">auto_awesome</span>
+                <span class="text-[11px] font-bold">加密生成</span>
+            </button>
+            
+            <!-- 还原解密 选项卡 -->
+            <button onclick="app.switchTab('decrypt')" id="tab-dec" class="w-[96px] py-2 flex flex-col items-center justify-center rounded-[32px] bg-transparent shadow-none text-slate-800 transition-all duration-300">
+                <span class="material-symbols-rounded text-[26px] mb-0.5">lock_open</span>
+                <span class="text-[11px] font-bold">还原解密</span>
+            </button>
+            
+        </div>
+    </div>
+
+    <!-- 顶部大标题栏 -->
+    <header class="max-w-2xl mx-auto px-4 pt-10 pb-2 fade-enter">
+        <h1 class="text-4xl md:text-5xl font-black text-slate-900 tracking-tight">PixelShard</h1>
+    </header>
+
+    <main class="max-w-2xl mx-auto px-4 mt-4 fade-enter">
+        
+        <!-- ================= GENERATE VIEW ================= -->
+        <div id="view-generate" class="space-y-6">
+            
+            <!-- Card 1: Upload -->
+            <div class="ios-card p-6 relative overflow-hidden group">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h2 class="text-2xl font-bold tracking-tight text-slate-900">选择照片</h2>
+                        <p class="text-sm text-slate-500 mt-1">照片将仅在本地通过浏览器处理</p>
+                    </div>
+                    <div class="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center text-blue-600">
+                        <span class="material-symbols-rounded text-[28px]">add_photo_alternate</span>
+                    </div>
+                </div>
+
+                <label class="block w-full aspect-[16/9] md:aspect-[2/1] rounded-[32px] border-2 border-dashed border-slate-300 hover:border-blue-400 bg-gray-50/50 cursor-pointer relative transition-all overflow-hidden">
+                    <div class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 z-10">
+                        <span class="text-sm font-medium">点击上传</span>
+                    </div>
+                    <!-- Image Preview Layer -->
+                    <img id="preview-gen" class="absolute inset-0 w-full h-full object-contain z-20 opacity-0 transition-opacity duration-500 bg-white/50 backdrop-blur-sm" />
+                    <input id="input-file" type="file" class="hidden" accept="image/*" />
+                </label>
+            </div>
+
+            <!-- Card 2: Settings -->
+            <div class="ios-card p-6 space-y-6">
+                
+                <!-- Encryption Mode -->
+                <div>
+                    <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 pl-1">加密模式</h3>
+                    <div class="grid grid-cols-1 gap-3">
+                        <label class="cursor-pointer relative group">
+                            <input type="radio" name="mode" value="secure" checked class="peer sr-only">
+                            <div class="p-4 rounded-[28px] bg-white border border-transparent peer-checked:border-blue-500 peer-checked:ring-4 peer-checked:ring-blue-500/10 shadow-sm transition-all flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                                    <span class="material-symbols-rounded text-[26px]">gpp_good</span>
+                                </div>
+                                <div>
+                                    <div class="font-bold text-slate-900 text-lg">安全乱序</div>
+                                    <div class="text-xs text-slate-500 mt-0.5">像素级打散 + 隐写序号</div>
+                                </div>
+                                <div class="ml-auto w-6 h-6 rounded-full border-2 border-slate-200 peer-checked:border-blue-500 peer-checked:bg-blue-500 flex items-center justify-center transition-all">
+                                    <span class="material-symbols-rounded text-[18px] text-white opacity-0 peer-checked:opacity-100" style="font-variation-settings: 'wght' 700;">check</span>
+                                </div>
+                            </div>
+                        </label>
+                        
+                        <label class="cursor-pointer relative group">
+                            <input type="radio" name="mode" value="classic" class="peer sr-only">
+                            <div class="p-4 rounded-[28px] bg-white border border-transparent peer-checked:border-blue-500 peer-checked:ring-4 peer-checked:ring-blue-500/10 shadow-sm transition-all flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+                                    <span class="material-symbols-rounded text-[26px]">layers</span>
+                                </div>
+                                <div>
+                                    <div class="font-bold text-slate-900 text-lg">经典叠加</div>
+                                    <div class="text-xs text-slate-500 mt-0.5">保留部分轮廓，可PS还原</div>
+                                </div>
+                                <div class="ml-auto w-6 h-6 rounded-full border-2 border-slate-200 peer-checked:border-blue-500 peer-checked:bg-blue-500 flex items-center justify-center transition-all">
+                                    <span class="material-symbols-rounded text-[18px] text-white opacity-0 peer-checked:opacity-100" style="font-variation-settings: 'wght' 700;">check</span>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div id="security-settings-container" class="space-y-6">
+                    <hr class="border-slate-200/60">
+
+                    <!-- Key & Options -->
+                    <div>
+                        <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 pl-1">安全及导出设置</h3>
+                        
+                        <!-- Key Input -->
+                        <div class="mb-4">
+                            <label class="text-xs text-slate-500 font-medium mb-1.5 block ml-1">解密密钥 (Key)</label>
+                            <div class="flex gap-2">
+                                <input type="number" id="param-key" class="ios-input w-full px-6 py-3.5 font-mono text-lg tracking-widest text-center text-slate-800 placeholder-slate-300" placeholder="0000">
+                                <button onclick="app.generateRandomKey()" class="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full font-medium transition-colors active:scale-95 flex items-center justify-center" title="随机生成">
+                                    <span class="material-symbols-rounded text-[24px]">shuffle</span>
+                                </button>
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-2 px-2">💡 密钥决定了图片的打散方式。解密时输入正确密钥，程序会自动将图片按正确顺序排列。</p>
+                        </div>
+
+                        <!-- Toggles List -->
+                        <div class="bg-white rounded-[28px] divide-y divide-slate-100 overflow-hidden border border-slate-100 shadow-sm">
+                            <!-- Include Key in Zip -->
+                            <div class="p-5 flex items-center justify-between">
+                                <div class="pr-4">
+                                    <div class="text-base font-semibold text-slate-900">保存密钥文件</div>
+                                    <div class="text-xs text-slate-500">在 ZIP 中包含仅存有密钥的 key.txt</div>
+                                </div>
+                                <input type="checkbox" id="param-save-key" class="ios-toggle">
+                            </div>
+
+                            <!-- Invert Colors -->
+                            <div class="p-5 flex items-center justify-between">
+                                <div class="pr-4">
+                                    <div class="text-base font-semibold text-slate-900">反相颜色 (底片)</div>
+                                    <div class="text-xs text-slate-500">生成负片效果，增加解密难度</div>
+                                </div>
+                                <input type="checkbox" id="param-invert" class="ios-toggle">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slider -->
+                <div>
+                    <div class="flex justify-between items-center mb-2 px-1">
+                        <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">碎片数量</label>
+                        <span id="val-count" class="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">9 张</span>
+                    </div>
+                    <input type="range" id="param-count" min="5" max="20" value="9" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
+                </div>
+
+                <!-- Filename -->
+                <div>
+                    <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block px-1">文件名</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="param-filename" value="PixelShard_Secret" class="ios-input w-full px-6 py-3.5 text-sm font-medium" placeholder="Zip文件名">
+                        <button onclick="app.randomizeFilename()" class="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full font-medium transition-colors active:scale-95 flex items-center justify-center whitespace-nowrap" title="添加随机后缀">
+                            <span class="text-sm font-bold">随机</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Main Button -->
+                <button id="btn-generate" onclick="app.processGenerate()" disabled class="w-full py-4 bg-[#007aff] hover:bg-blue-600 active:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold rounded-full shadow-lg shadow-blue-500/30 transition-all flex justify-center items-center gap-2 text-lg active:scale-[0.98]">
+                    <span>生成 & 下载</span>
+                    <div class="spinner hidden" id="gen-spinner"></div>
+                </button>
+            </div>
+
+            <!-- Preview Grid -->
+            <div id="gen-result" class="hidden">
+                <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3 px-2">预览</h3>
+                <div id="gen-gallery" class="grid grid-cols-4 md:grid-cols-6 gap-2"></div>
+            </div>
+        </div>
+
+        <!-- ================= DECRYPT VIEW ================= -->
+        <div id="view-decrypt" class="hidden space-y-6">
+            
+            <div class="ios-card p-8 text-center space-y-6">
+                <div class="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-2 shadow-sm">
+                    <span class="material-symbols-rounded text-[40px]">lock_open</span>
+                </div>
+                
+                <h2 class="text-2xl font-bold text-slate-900">还原照片</h2>
+                
+                <div class="text-left space-y-5">
+                    <!-- File Input -->
+                    <div class="bg-gray-50 rounded-[32px] p-5 border border-slate-200 hover:border-green-400 transition-colors cursor-pointer relative" onclick="document.getElementById('input-dec-files').click()">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center text-slate-400 shrink-0">
+                                <span class="material-symbols-rounded text-[28px]">folder_zip</span>
+                            </div>
+                            <div>
+                                <div class="font-semibold text-slate-900 text-lg">选择碎片或 ZIP 档案</div>
+                                <div class="text-xs text-slate-500" id="dec-file-label">无需关心文件名顺序，支持直接导入 .zip 档案</div>
+                            </div>
+                        </div>
+                        <input type="file" id="input-dec-files" multiple accept="image/*,.zip" class="hidden">
+                    </div>
+
+                    <!-- Key Input -->
+                    <div>
+                        <label class="text-xs text-slate-500 font-medium mb-1.5 block ml-1">解密密钥 (自动排序核心)</label>
+                        <input type="number" id="dec-key" class="ios-input w-full px-6 py-3.5 font-mono text-lg tracking-widest text-center" placeholder="请输入密钥">
+                    </div>
+
+                    <!-- Invert Toggle -->
+                    <div class="flex items-center justify-between px-2 py-2">
+                        <span class="text-base font-medium text-slate-700">反相还原</span>
+                        <input type="checkbox" id="dec-invert" class="ios-toggle">
+                    </div>
+
+                    <button id="btn-decrypt" onclick="app.processDecrypt()" disabled class="w-full py-4 bg-[#34c759] hover:bg-green-600 active:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-full shadow-lg shadow-green-500/30 transition-all flex justify-center items-center gap-2 text-lg active:scale-[0.98]">
+                        <span>开始还原</span>
+                        <div class="spinner hidden" id="dec-spinner"></div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Result -->
+            <div id="dec-result" class="hidden ios-card p-4">
+                <canvas id="canvas-result" class="w-full h-auto rounded-[24px] shadow-sm border border-slate-100 bg-[url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMUlEQVQ4T2N89uzZfwY8QFJSEp80A+OoAcMhYIDCQFwwGg4gWzE4HEBWAJ80AwM5AAAh8hB5E0k+xAAAAABJRU5ErkJggg==')]"></canvas>
+                <button onclick="app.downloadDecrypted()" class="mt-4 w-full py-3.5 bg-white border border-slate-200 text-blue-600 font-semibold rounded-full text-base shadow-sm active:bg-slate-50">保存到相册 (下载)</button>
+            </div>
+
+        </div>
+
+    </main>
+
+    <script>
+        // ================= ALGORITHMS =================
+        function mulberry32(a) {
+            return function() {
+                var t = a += 0x6D2B79F5;
+                t = Math.imul(t ^ t >>> 15, t | 1);
+                t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+                return ((t ^ t >>> 14) >>> 0) / 4294967296;
+            }
+        }
+        function seededShuffle(array, seed) {
+            const rng = mulberry32(seed);
+            let m = array.length, t, i;
+            while (m) {
+                i = Math.floor(rng() * m--);
+                t = array[m];
+                array[m] = array[i];
+                array[i] = t;
+            }
+            return array;
+        }
+
+        // ================= APP LOGIC =================
+        const app = {
+            state: {
+                sourceImage: null,
+                decryptedBlob: null,
+                decFiles: [] // 暂存解密用的 File 对象数组（用于直接解析 ZIP 或多选照片）
+            },
+            
+            els: {
+                tabs: { gen: document.getElementById('tab-gen'), dec: document.getElementById('tab-dec') },
+                views: { gen: document.getElementById('view-generate'), dec: document.getElementById('view-decrypt') },
+                gen: {
+                    input: document.getElementById('input-file'),
+                    preview: document.getElementById('preview-gen'),
+                    btn: document.getElementById('btn-generate'),
+                    spinner: document.getElementById('gen-spinner'),
+                    key: document.getElementById('param-key'),
+                    saveKey: document.getElementById('param-save-key'), 
+                    count: document.getElementById('param-count'),
+                    countDisplay: document.getElementById('val-count'),
+                    invert: document.getElementById('param-invert'),
+                    filename: document.getElementById('param-filename'),
+                    gallery: document.getElementById('gen-gallery'),
+                    result: document.getElementById('gen-result')
+                },
+                dec: {
+                    input: document.getElementById('input-dec-files'),
+                    fileLabel: document.getElementById('dec-file-label'),
+                    key: document.getElementById('dec-key'),
+                    invert: document.getElementById('dec-invert'),
+                    btn: document.getElementById('btn-decrypt'),
+                    spinner: document.getElementById('dec-spinner'),
+                    resultDiv: document.getElementById('dec-result'),
+                    canvas: document.getElementById('canvas-result')
+                }
+            },
+
+            init() {
+                this.generateRandomKey();
+                
+                this.els.gen.count.addEventListener('input', e => this.els.gen.countDisplay.textContent = e.target.value + " 张");
+                this.els.gen.input.addEventListener('change', e => this.handleFileSelect(e));
+                this.els.dec.input.addEventListener('change', (e) => this.handleDecFileSelect(e));
+                this.els.dec.key.addEventListener('input', () => this.validateDecryptState());
+
+                // 监听加密模式切换，经典叠加时隐藏安全设置板块
+                document.querySelectorAll('input[name="mode"]').forEach(radio => {
+                    radio.addEventListener('change', (e) => {
+                        const isSecure = e.target.value === 'secure';
+                        const securityContainer = document.getElementById('security-settings-container');
+                        securityContainer.style.display = isSecure ? 'block' : 'none';
+                    });
+                });
+            },
+
+            generateRandomKey() {
+                const key = Math.floor(Math.random() * 900000) + 100000;
+                this.els.gen.key.value = key;
+            },
+
+            randomizeFilename() {
+                const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+                let rand = '';
+                for(let i=0; i<6; i++) rand += chars.charAt(Math.floor(Math.random() * chars.length));
+                this.els.gen.filename.value = `PixelShard_Secret_${rand}`;
+            },
+
+            switchTab(tab) {
+                const updateDOM = () => {
+                    const isGen = tab === 'generate';
+                    this.els.views.gen.classList.toggle('hidden', !isGen);
+                    this.els.views.dec.classList.toggle('hidden', isGen);
+                    
+                    // 根据图片更新的选中与未选中的 Tailwind 样式
+                    const activeClasses = ['bg-white', 'shadow-[0_4px_10px_rgba(0,0,0,0.08)]', 'text-blue-600'];
+                    const inactiveClasses = ['bg-transparent', 'shadow-none', 'text-slate-800'];
+
+                    if(isGen) {
+                        this.els.tabs.gen.classList.add(...activeClasses);
+                        this.els.tabs.gen.classList.remove(...inactiveClasses);
+                        this.els.tabs.dec.classList.add(...inactiveClasses);
+                        this.els.tabs.dec.classList.remove(...activeClasses);
+                    } else {
+                        this.els.tabs.dec.classList.add(...activeClasses);
+                        this.els.tabs.dec.classList.remove(...inactiveClasses);
+                        this.els.tabs.gen.classList.add(...inactiveClasses);
+                        this.els.tabs.gen.classList.remove(...activeClasses);
+                    }
+                };
+
+                // 使用现代浏览器的 View Transitions API 实现原生级丝滑切换
+                if (document.startViewTransition) {
+                    document.startViewTransition(() => updateDOM());
+                } else {
+                    updateDOM(); // 降级处理：老浏览器直接切换
+                }
+            },
+
+            handleFileSelect(e) {
+                const file = e.target.files[0];
+                if(!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        this.state.sourceImage = img;
+                        this.els.gen.preview.src = img.src;
+                        this.els.gen.preview.classList.remove('opacity-0');
+                        this.els.gen.btn.disabled = false;
+                        this.els.gen.result.classList.add('hidden');
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            },
+
+            async handleDecFileSelect(e) {
+                const files = Array.from(e.target.files);
+                if(files.length === 0) {
+                    this.state.decFiles = [];
+                    this.validateDecryptState();
+                    return;
+                }
+
+                // 判断如果只上传了一个 ZIP 文件
+                if (files.length === 1 && files[0].name.toLowerCase().endsWith('.zip')) {
+                    this.setLoading(true, 'dec');
+                    this.els.dec.fileLabel.textContent = "正在解析 ZIP 档案...";
+                    try {
+                        const zip = await JSZip.loadAsync(files[0]);
+                        const extractedFiles = [];
+                        let foundKey = false;
+
+                        // 遍历 ZIP 里的所有文件
+                        for (const relativePath of Object.keys(zip.files)) {
+                            const zipEntry = zip.files[relativePath];
+                            if (zipEntry.dir) continue;
+
+                            // 检索 key.txt
+                            if (relativePath.toLowerCase().endsWith('key.txt')) {
+                                const keyStr = await zipEntry.async('string');
+                                this.els.dec.key.value = keyStr.trim();
+                                foundKey = true;
+                            } 
+                            // 检索图片文件
+                            else if (relativePath.match(/\.(png|jpe?g|gif|webp)$/i)) {
+                                const blob = await zipEntry.async('blob');
+                                const fileObj = new File([blob], relativePath.split('/').pop(), { type: blob.type || 'image/png' });
+                                extractedFiles.push(fileObj);
+                            }
+                        }
+                        this.state.decFiles = extractedFiles;
+                        this.els.dec.fileLabel.textContent = `已从档案提取 ${extractedFiles.length} 张图片${foundKey ? '，并自动填入密钥' : ''}`;
+                    } catch (err) {
+                        alert("解析 ZIP 档案失败: " + err.message);
+                        this.state.decFiles = [];
+                        this.els.dec.fileLabel.textContent = "解析失败，请重新上传";
+                    } finally {
+                        this.setLoading(false, 'dec');
+                        this.validateDecryptState();
+                    }
+                } else {
+                    // 如果普通上传碎片图片，筛选出图片类型
+                    this.state.decFiles = files.filter(f => f.type.startsWith('image/'));
+                    this.els.dec.fileLabel.textContent = `已选择 ${this.state.decFiles.length} 张图片`;
+                    this.validateDecryptState();
+                }
+            },
+
+            validateDecryptState() {
+                const hasFiles = this.state.decFiles && this.state.decFiles.length > 0;
+                this.els.dec.btn.disabled = !hasFiles;
+            },
+
+            async processGenerate() {
+                if (!this.state.sourceImage) return;
+                this.setLoading(true, 'gen');
+                await new Promise(r => setTimeout(r, 50));
+
+                try {
+                    const mode = document.querySelector('input[name="mode"]:checked').value;
+                    const count = parseInt(this.els.gen.count.value);
+                    const keyVal = parseInt(this.els.gen.key.value) || 0;
+                    const invert = this.els.gen.invert.checked;
+                    const saveKey = this.els.gen.saveKey.checked;
+                    
+                    const w = this.state.sourceImage.width;
+                    const h = this.state.sourceImage.height;
+                    
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(this.state.sourceImage, 0, 0);
+                    
+                    const srcData = ctx.getImageData(0, 0, w, h);
+                    const pixels = srcData.data;
+                    const totalPixels = w * h;
+
+                    const layers = [];
+                    for(let i=0; i<count; i++) layers.push(new Uint8ClampedArray(totalPixels * 4));
+
+                    // Algorithm
+                    if (mode === 'secure') {
+                        const indices = new Uint32Array(totalPixels);
+                        for(let i=0; i<totalPixels; i++) indices[i] = i;
+                        seededShuffle(indices, keyVal);
+                        
+                        const chunkSize = Math.ceil(totalPixels / count);
+                        
+                        for(let i=0; i<totalPixels; i++) {
+                            const originalIdx = indices[i];
+                            let r = pixels[originalIdx*4], g = pixels[originalIdx*4+1], b = pixels[originalIdx*4+2], a = pixels[originalIdx*4+3];
+                            
+                            if(invert && a > 0) { r=255-r; g=255-g; b=255-b; }
+                            
+                            const layerIdx = Math.floor(i / chunkSize);
+                            if(layerIdx >= count) continue;
+                            const targetPos = i % chunkSize;
+                            
+                            layers[layerIdx][targetPos*4] = r;
+                            layers[layerIdx][targetPos*4+1] = g;
+                            layers[layerIdx][targetPos*4+2] = b;
+                            layers[layerIdx][targetPos*4+3] = a;
+                        }
+
+                        // Secure Mode Marker Logic
+                        for(let i=0; i<count; i++) {
+                            if (i * chunkSize < totalPixels) {
+                                layers[i][0] = i; 
+                                layers[i][1] = 255; 
+                                layers[i][2] = 255;
+                                layers[i][3] = 255;
+                            }
+                        }
+
+                    } else {
+                        // Classic
+                        const rng = mulberry32(keyVal);
+                        for(let i=0; i<totalPixels; i++) {
+                            const a = pixels[i*4+3];
+                            if(a===0) continue;
+                            let r = pixels[i*4], g = pixels[i*4+1], b = pixels[i*4+2];
+                            if(invert) { r=255-r; g=255-g; b=255-b; }
+                            const layerIdx = Math.floor(rng() * count);
+                            layers[layerIdx][i*4]=r; layers[layerIdx][i*4+1]=g; layers[layerIdx][i*4+2]=b; layers[layerIdx][i*4+3]=a;
+                        }
+                        
+                        for(let i=0; i<count; i++) {
+                             layers[i][0] = i; layers[i][1] = 255; layers[i][2] = 255; layers[i][3] = 255;
+                        }
+                    }
+
+                    // Zip
+                    const zip = new JSZip();
+                    const fname = this.els.gen.filename.value.trim() || 'PixelShard_Secret';
+                    const folder = zip.folder(fname);
+
+                    // 如果处于安全模式且勾选了保存密钥
+                    if (saveKey && mode === 'secure') {
+                        folder.file("key.txt", keyVal.toString());
+                    }
+
+                    this.els.gen.gallery.innerHTML = '';
+                    const promises = layers.map((layerData, idx) => {
+                        return new Promise(resolve => {
+                            const tCanvas = document.createElement('canvas');
+                            tCanvas.width = w; tCanvas.height = h;
+                            const tCtx = tCanvas.getContext('2d');
+                            tCtx.putImageData(new ImageData(layerData, w, h), 0, 0);
+                            tCanvas.toBlob(blob => {
+                                folder.file(`${fname}_${idx+1}.png`, blob);
+                                const url = URL.createObjectURL(blob);
+                                const div = document.createElement('div');
+                                div.className = 'aspect-square bg-slate-100 rounded-[20px] overflow-hidden relative shadow-sm';
+                                div.innerHTML = `<img src="${url}" class="w-full h-full object-cover rendering-pixelated">`;
+                                this.els.gen.gallery.appendChild(div);
+                                resolve();
+                            }, 'image/png');
+                        });
+                    });
+
+                    await Promise.all(promises);
+                    const content = await zip.generateAsync({type:"blob"});
+                    saveAs(content, `${fname}.zip`);
+                    this.els.gen.result.classList.remove('hidden');
+
+                } catch(e) {
+                    alert(e);
+                    console.error(e);
+                } finally {
+                    this.setLoading(false, 'gen');
+                }
+            },
+
+            async processDecrypt() {
+                const files = this.state.decFiles;
+                if(!files || files.length === 0) return;
+                
+                this.setLoading(true, 'dec');
+                await new Promise(r => setTimeout(r, 50));
+
+                try {
+                    const keyVal = parseInt(this.els.dec.key.value);
+
+                    // 1. Load Images
+                    let loadedImgs = await Promise.all(files.map(f => {
+                        return new Promise((resolve) => {
+                            const img = new Image();
+                            img.onload = () => resolve(img);
+                            img.src = URL.createObjectURL(f);
+                        });
+                    }));
+
+                    const w = loadedImgs[0].width;
+                    const h = loadedImgs[0].height;
+                    const totalPixels = w * h;
+
+                    // 2. SORT LOGIC
+                    if (keyVal) {
+                        const tempC = document.createElement('canvas');
+                        tempC.width = 1; tempC.height = 1;
+                        const tempCtx = tempC.getContext('2d');
+
+                        const imagesWithIndex = loadedImgs.map(img => {
+                            tempCtx.clearRect(0,0,1,1);
+                            tempCtx.drawImage(img, 0, 0, 1, 1, 0, 0, 1, 1);
+                            const p = tempCtx.getImageData(0,0,1,1).data;
+                            return { img, index: p[0], valid: p[1] === 255 }; 
+                        });
+
+                        const hasMarkers = imagesWithIndex.some(i => i.valid);
+                        if(hasMarkers) {
+                            imagesWithIndex.sort((a, b) => a.index - b.index);
+                            loadedImgs = imagesWithIndex.map(item => item.img);
+                        } else {
+                            const fileImgPairs = await Promise.all(files.map(f => {
+                                return new Promise(resolve => {
+                                    const img = new Image();
+                                    img.onload = () => resolve({ f, img });
+                                    img.src = URL.createObjectURL(f);
+                                });
+                            }));
+                            fileImgPairs.sort((a, b) => {
+                                const numA = (a.f.name.match(/\d+/g) || []).pop() || 0;
+                                const numB = (b.f.name.match(/\d+/g) || []).pop() || 0;
+                                return parseInt(numA) - parseInt(numB);
+                            });
+                            loadedImgs = fileImgPairs.map(p => p.img);
+                        }
+
+                    } else {
+                        const fileImgPairs = await Promise.all(files.map(f => {
+                            return new Promise(resolve => {
+                                const img = new Image();
+                                img.onload = () => resolve({ f, img });
+                                img.src = URL.createObjectURL(f);
+                            });
+                        }));
+                        fileImgPairs.sort((a, b) => {
+                            const numA = (a.f.name.match(/\d+/g) || []).pop() || 0;
+                            const numB = (b.f.name.match(/\d+/g) || []).pop() || 0;
+                            return parseInt(numA) - parseInt(numB);
+                        });
+                        loadedImgs = fileImgPairs.map(p => p.img);
+                    }
+
+                    const invert = this.els.dec.invert.checked;
+                    const canvas = this.els.dec.canvas;
+                    canvas.width = w; canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    
+                    // 3. DECRYPT
+                    if (!keyVal) {
+                        ctx.clearRect(0,0,w,h);
+                        loadedImgs.forEach(img => ctx.drawImage(img, 0, 0));
+                        if(invert) {
+                            const d = ctx.getImageData(0,0,w,h).data;
+                            for(let i=0; i<d.length; i+=4) { d[i]=255-d[i]; d[i+1]=255-d[i+1]; d[i+2]=255-d[i+2]; }
+                            ctx.putImageData(new ImageData(d,w,h),0,0);
+                        }
+                    } else {
+                        const tempCanvas = document.createElement('canvas');
+                        tempCanvas.width = w; tempCanvas.height = h;
+                        const tempCtx = tempCanvas.getContext('2d');
+                        
+                        const allShuffledPixels = new Uint32Array(totalPixels);
+                        let pixelPtr = 0;
+                        
+                        for (let img of loadedImgs) {
+                            tempCtx.clearRect(0,0,w,h);
+                            tempCtx.drawImage(img, 0, 0);
+                            const iData = tempCtx.getImageData(0,0,w,h);
+                            const data32 = new Uint32Array(iData.data.buffer);
+                            for(let i=0; i<data32.length; i++) {
+                                if (iData.data[i*4+3] > 0) {
+                                    if(pixelPtr < totalPixels) allShuffledPixels[pixelPtr++] = data32[i];
+                                }
+                            }
+                        }
+
+                        const indices = new Uint32Array(totalPixels);
+                        for(let i=0; i<totalPixels; i++) indices[i] = i;
+                        seededShuffle(indices, keyVal);
+                        
+                        const finalData = new Uint32Array(totalPixels);
+                        for(let i=0; i<totalPixels; i++) finalData[indices[i]] = allShuffledPixels[i];
+                        
+                        const finalImgData = new ImageData(new Uint8ClampedArray(finalData.buffer), w, h);
+                        
+                        if(invert) {
+                            const d = finalImgData.data;
+                            for(let i=0; i<d.length; i+=4) {
+                                if(d[i+3] > 0) { d[i]=255-d[i]; d[i+1]=255-d[i+1]; d[i+2]=255-d[i+2]; }
+                            }
+                        }
+                        ctx.putImageData(finalImgData, 0, 0);
+                    }
+
+                    this.els.dec.resultDiv.classList.remove('hidden');
+                    canvas.toBlob(b => this.state.decryptedBlob = b);
+
+                } catch(e) {
+                    alert("还原失败: " + e.message);
+                } finally {
+                    this.setLoading(false, 'dec');
+                }
+            },
+
+            downloadDecrypted() {
+                if(this.state.decryptedBlob) saveAs(this.state.decryptedBlob, 'restored_image.png');
+            },
+
+            setLoading(loading, section) {
+                const els = this.els[section];
+                els.btn.disabled = loading;
+                if(loading) els.spinner.classList.remove('hidden');
+                else els.spinner.classList.add('hidden');
+            }
+        };
+
+        app.init();
+    </script>
+</body>
+</html>
