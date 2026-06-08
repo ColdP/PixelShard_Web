@@ -6,6 +6,27 @@
     <title>PixelShard</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- 深色模式初始检测以防闪烁 -->
+    <script>
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark')
+        } else {
+            document.documentElement.classList.remove('dark')
+        }
+    </script>
+
     <!-- Material Symbols Rounded -->
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
     <!-- JSZip -->
@@ -21,10 +42,15 @@
         }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            /* iOS 16+ Wallpaper Abstract Gradient */
+            /* 浅色模式背景 */
             background: radial-gradient(circle at 0% 0%, #dbeafe 0%, #eff6ff 50%, #f0f9ff 100%);
             background-attachment: fixed;
+            transition: background 0.3s ease;
+        }
+        
+        .dark body {
+            /* 深色模式背景 */
+            background: radial-gradient(circle at 0% 0%, #0f172a 0%, #1e293b 50%, #0f172a 100%);
         }
 
         /* iOS Toggle Switch */
@@ -39,6 +65,7 @@
             outline: none;
             transition: background 0.3s ease;
         }
+        .dark .ios-toggle { background: #334155; }
         .ios-toggle::after {
             content: '';
             position: absolute;
@@ -66,19 +93,31 @@
             border: 1px solid rgba(255, 255, 255, 0.5);
             box-shadow: 0 10px 40px -10px rgba(0,0,0,0.05);
             border-radius: 40px;
+            transition: background 0.3s ease, border-color 0.3s ease;
+        }
+        .dark .ios-card {
+            background: rgba(30, 41, 59, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         /* iOS Input Field */
         .ios-input {
             background: #f3f4f6; /* Gray-100 */
             border: none;
-            border-radius: 9999px; /* Full pill shape */
-            transition: background 0.2s;
+            border-radius: 9999px;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        .dark .ios-input {
+            background: #334155;
+            color: #f8fafc;
         }
         .ios-input:focus {
-            background: #e5e7eb; /* Gray-200 */
+            background: #e5e7eb;
             outline: none;
             box-shadow: 0 0 0 2px #007aff20;
+        }
+        .dark .ios-input:focus {
+            background: #475569;
         }
 
         /* Loading Spinner */
@@ -101,52 +140,51 @@
             to { opacity: 1; transform: translateY(0); }
         }
         
-        /* View Transitions API (丝滑Tab切换核心) */
+        /* View Transitions API */
         ::view-transition-old(root),
         ::view-transition-new(root) {
             animation-duration: 0.4s;
             animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
         }
-        ::view-transition-old(root) {
-            animation-name: fadeOut;
-        }
-        ::view-transition-new(root) {
-            animation-name: fadeIn;
-        }
-        @keyframes fadeOut {
-            from { opacity: 1; }
-            to { opacity: 0; }
-        }
+        ::view-transition-old(root) { animation-name: fadeOut; }
+        ::view-transition-new(root) { animation-name: fadeIn; }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
 
-        /* Hide Scrollbar for horizontal scrolling if needed */
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="text-slate-800 min-h-screen pb-32">
+<body class="text-slate-800 dark:text-slate-200 min-h-screen pb-32">
 
-    <!-- 重新设计的 iOS 悬浮导航栏 (高通透低模糊) -->
+    <!-- 重新设计的 iOS 悬浮导航栏 (增加了内阴影高光) -->
     <div class="fixed bottom-8 left-0 right-0 z-50 px-4 flex justify-center pointer-events-none fade-enter">
-        <div class="bg-white/20 backdrop-blur-[8px] p-1.5 rounded-[40px] flex justify-around shadow-[0_8px_30px_rgb(0,0,0,0.05)] border border-white/40 w-full max-w-[240px] pointer-events-auto items-center">
+        <div class="bg-white/20 dark:bg-slate-800/40 backdrop-blur-[12px] p-1.5 rounded-[40px] flex justify-around shadow-[inset_0_1px_2px_rgba(255,255,255,0.8),0_8px_30px_rgba(0,0,0,0.06)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.15),0_8px_30px_rgba(0,0,0,0.2)] border border-white/40 dark:border-slate-700/50 w-full max-w-[340px] pointer-events-auto items-center transition-colors">
             
             <!-- 加密生成 选项卡 -->
-            <button onclick="app.switchTab('generate')" id="tab-gen" class="w-[96px] py-2 flex flex-col items-center justify-center rounded-[32px] bg-white shadow-[0_4px_10px_rgba(0,0,0,0.08)] text-blue-600 transition-all duration-300">
+            <button onclick="app.switchTab('generate')" id="tab-gen" class="w-[96px] py-2 flex flex-col items-center justify-center rounded-[32px] bg-white/60 dark:bg-slate-700/60 shadow-[0_4px_10px_rgba(0,0,0,0.08)] text-blue-600 dark:text-blue-400 transition-all duration-300">
                 <span class="material-symbols-rounded text-[26px] mb-0.5">auto_awesome</span>
                 <span class="text-[11px] font-bold">加密生成</span>
             </button>
             
             <!-- 还原解密 选项卡 -->
-            <button onclick="app.switchTab('decrypt')" id="tab-dec" class="w-[96px] py-2 flex flex-col items-center justify-center rounded-[32px] bg-transparent shadow-none text-slate-800 transition-all duration-300">
+            <button onclick="app.switchTab('decrypt')" id="tab-dec" class="w-[96px] py-2 flex flex-col items-center justify-center rounded-[32px] bg-transparent shadow-none text-slate-800 dark:text-slate-300 transition-all duration-300 hover:text-slate-900 dark:hover:text-white">
                 <span class="material-symbols-rounded text-[26px] mb-0.5">lock_open</span>
                 <span class="text-[11px] font-bold">还原解密</span>
+            </button>
+
+            <!-- 关于 选项卡 -->
+            <button onclick="app.switchTab('about')" id="tab-abt" class="w-[96px] py-2 flex flex-col items-center justify-center rounded-[32px] bg-transparent shadow-none text-slate-800 dark:text-slate-300 transition-all duration-300 hover:text-slate-900 dark:hover:text-white">
+                <span class="material-symbols-rounded text-[26px] mb-0.5">info</span>
+                <span class="text-[11px] font-bold">关于</span>
             </button>
             
         </div>
     </div>
 
-    <!-- 顶部大标题栏 -->
-    <header class="max-w-2xl mx-auto px-4 pt-10 pb-2 fade-enter">
-        <h1 class="text-4xl md:text-5xl font-black text-slate-900 tracking-tight">PixelShard</h1>
+    <!-- 顶部大标题栏 & 深色模式切换 -->
+    <header class="max-w-2xl mx-auto px-4 pt-10 pb-2 fade-enter flex justify-between items-center">
+        <h1 class="text-4xl md:text-5xl font-black text-slate-900 dark:text-white tracking-tight">PixelShard</h1>
+        <button onclick="app.toggleTheme()" class="p-2.5 rounded-full bg-white/50 dark:bg-slate-800/50 backdrop-blur-md shadow-sm border border-slate-200/50 dark:border-slate-700/50 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 transition-all active:scale-95" title="切换深色模式">
+            <span class="material-symbols-rounded block text-[22px]" id="theme-icon">light_mode</span>
+        </button>
     </header>
 
     <main class="max-w-2xl mx-auto px-4 mt-4 fade-enter">
@@ -158,20 +196,20 @@
             <div class="ios-card p-6 relative overflow-hidden group">
                 <div class="flex justify-between items-start mb-4">
                     <div>
-                        <h2 class="text-2xl font-bold tracking-tight text-slate-900">选择照片</h2>
-                        <p class="text-sm text-slate-500 mt-1">照片将仅在本地通过浏览器处理</p>
+                        <h2 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">选择照片</h2>
+                        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">照片将仅在本地通过浏览器处理</p>
                     </div>
-                    <div class="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center text-blue-600">
+                    <div class="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 transition-colors">
                         <span class="material-symbols-rounded text-[28px]">add_photo_alternate</span>
                     </div>
                 </div>
 
-                <label class="block w-full aspect-[16/9] md:aspect-[2/1] rounded-[32px] border-2 border-dashed border-slate-300 hover:border-blue-400 bg-gray-50/50 cursor-pointer relative transition-all overflow-hidden">
-                    <div class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 z-10">
+                <label class="block w-full aspect-[16/9] md:aspect-[2/1] rounded-[32px] border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-500 bg-gray-50/50 dark:bg-slate-800/50 cursor-pointer relative transition-all overflow-hidden">
+                    <div class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 z-10">
                         <span class="text-sm font-medium">点击上传</span>
                     </div>
                     <!-- Image Preview Layer -->
-                    <img id="preview-gen" class="absolute inset-0 w-full h-full object-contain z-20 opacity-0 transition-opacity duration-500 bg-white/50 backdrop-blur-sm" />
+                    <img id="preview-gen" class="absolute inset-0 w-full h-full object-contain z-20 opacity-0 transition-opacity duration-500 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm" />
                     <input id="input-file" type="file" class="hidden" accept="image/*" />
                 </label>
             </div>
@@ -185,15 +223,15 @@
                     <div class="grid grid-cols-1 gap-3">
                         <label class="cursor-pointer relative group">
                             <input type="radio" name="mode" value="secure" checked class="peer sr-only">
-                            <div class="p-4 rounded-[28px] bg-white border border-transparent peer-checked:border-blue-500 peer-checked:ring-4 peer-checked:ring-blue-500/10 shadow-sm transition-all flex items-center gap-4">
-                                <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                            <div class="p-4 rounded-[28px] bg-white dark:bg-slate-800 border border-transparent peer-checked:border-blue-500 peer-checked:ring-4 peer-checked:ring-blue-500/10 shadow-sm transition-all flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 transition-colors">
                                     <span class="material-symbols-rounded text-[26px]">gpp_good</span>
                                 </div>
                                 <div>
-                                    <div class="font-bold text-slate-900 text-lg">安全乱序</div>
-                                    <div class="text-xs text-slate-500 mt-0.5">像素级打散 + 隐写序号</div>
+                                    <div class="font-bold text-slate-900 dark:text-white text-lg">安全乱序</div>
+                                    <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">像素级打散 + 隐写序号</div>
                                 </div>
-                                <div class="ml-auto w-6 h-6 rounded-full border-2 border-slate-200 peer-checked:border-blue-500 peer-checked:bg-blue-500 flex items-center justify-center transition-all">
+                                <div class="ml-auto w-6 h-6 rounded-full border-2 border-slate-200 dark:border-slate-600 peer-checked:border-blue-500 peer-checked:bg-blue-500 flex items-center justify-center transition-all">
                                     <span class="material-symbols-rounded text-[18px] text-white opacity-0 peer-checked:opacity-100" style="font-variation-settings: 'wght' 700;">check</span>
                                 </div>
                             </div>
@@ -201,15 +239,15 @@
                         
                         <label class="cursor-pointer relative group">
                             <input type="radio" name="mode" value="classic" class="peer sr-only">
-                            <div class="p-4 rounded-[28px] bg-white border border-transparent peer-checked:border-blue-500 peer-checked:ring-4 peer-checked:ring-blue-500/10 shadow-sm transition-all flex items-center gap-4">
-                                <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+                            <div class="p-4 rounded-[28px] bg-white dark:bg-slate-800 border border-transparent peer-checked:border-blue-500 peer-checked:ring-4 peer-checked:ring-blue-500/10 shadow-sm transition-all flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0 transition-colors">
                                     <span class="material-symbols-rounded text-[26px]">layers</span>
                                 </div>
                                 <div>
-                                    <div class="font-bold text-slate-900 text-lg">经典叠加</div>
-                                    <div class="text-xs text-slate-500 mt-0.5">保留部分轮廓，可PS还原</div>
+                                    <div class="font-bold text-slate-900 dark:text-white text-lg">经典叠加</div>
+                                    <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">保留部分轮廓，可PS还原</div>
                                 </div>
-                                <div class="ml-auto w-6 h-6 rounded-full border-2 border-slate-200 peer-checked:border-blue-500 peer-checked:bg-blue-500 flex items-center justify-center transition-all">
+                                <div class="ml-auto w-6 h-6 rounded-full border-2 border-slate-200 dark:border-slate-600 peer-checked:border-blue-500 peer-checked:bg-blue-500 flex items-center justify-center transition-all">
                                     <span class="material-symbols-rounded text-[18px] text-white opacity-0 peer-checked:opacity-100" style="font-variation-settings: 'wght' 700;">check</span>
                                 </div>
                             </div>
@@ -218,7 +256,7 @@
                 </div>
 
                 <div id="security-settings-container" class="space-y-6">
-                    <hr class="border-slate-200/60">
+                    <hr class="border-slate-200/60 dark:border-slate-700">
 
                     <!-- Key & Options -->
                     <div>
@@ -226,23 +264,23 @@
                         
                         <!-- Key Input -->
                         <div class="mb-4">
-                            <label class="text-xs text-slate-500 font-medium mb-1.5 block ml-1">解密密钥 (Key)</label>
+                            <label class="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1.5 block ml-1">解密密钥 (Key)</label>
                             <div class="flex gap-2">
-                                <input type="number" id="param-key" class="ios-input w-full px-6 py-3.5 font-mono text-lg tracking-widest text-center text-slate-800 placeholder-slate-300" placeholder="0000">
-                                <button onclick="app.generateRandomKey()" class="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full font-medium transition-colors active:scale-95 flex items-center justify-center" title="随机生成">
+                                <input type="number" id="param-key" class="ios-input w-full px-6 py-3.5 font-mono text-lg tracking-widest text-center placeholder-slate-300 dark:placeholder-slate-500" placeholder="0000">
+                                <button onclick="app.generateRandomKey()" class="px-5 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 rounded-full font-medium transition-colors active:scale-95 flex items-center justify-center" title="随机生成">
                                     <span class="material-symbols-rounded text-[24px]">shuffle</span>
                                 </button>
                             </div>
-                            <p class="text-[10px] text-slate-400 mt-2 px-2">💡 密钥决定了图片的打散方式。解密时输入正确密钥，程序会自动将图片按正确顺序排列。</p>
+                            <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-2 px-2">💡 密钥决定了图片的打散方式。解密时输入正确密钥，程序会自动将图片按正确顺序排列。</p>
                         </div>
 
                         <!-- Toggles List -->
-                        <div class="bg-white rounded-[28px] divide-y divide-slate-100 overflow-hidden border border-slate-100 shadow-sm">
+                        <div class="bg-white dark:bg-slate-800 rounded-[28px] divide-y divide-slate-100 dark:divide-slate-700/50 overflow-hidden border border-slate-100 dark:border-slate-700 shadow-sm transition-colors">
                             <!-- Include Key in Zip -->
                             <div class="p-5 flex items-center justify-between">
                                 <div class="pr-4">
-                                    <div class="text-base font-semibold text-slate-900">保存密钥文件</div>
-                                    <div class="text-xs text-slate-500">在 ZIP 中包含仅存有密钥的 key.txt</div>
+                                    <div class="text-base font-semibold text-slate-900 dark:text-white">保存密钥文件</div>
+                                    <div class="text-xs text-slate-500 dark:text-slate-400">在 ZIP 中包含仅存有密钥的 key.txt</div>
                                 </div>
                                 <input type="checkbox" id="param-save-key" class="ios-toggle">
                             </div>
@@ -250,8 +288,8 @@
                             <!-- Invert Colors -->
                             <div class="p-5 flex items-center justify-between">
                                 <div class="pr-4">
-                                    <div class="text-base font-semibold text-slate-900">反相颜色 (底片)</div>
-                                    <div class="text-xs text-slate-500">生成负片效果，增加解密难度</div>
+                                    <div class="text-base font-semibold text-slate-900 dark:text-white">反相颜色 (底片)</div>
+                                    <div class="text-xs text-slate-500 dark:text-slate-400">生成负片效果，增加解密难度</div>
                                 </div>
                                 <input type="checkbox" id="param-invert" class="ios-toggle">
                             </div>
@@ -263,9 +301,9 @@
                 <div>
                     <div class="flex justify-between items-center mb-2 px-1">
                         <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">碎片数量</label>
-                        <span id="val-count" class="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">9 张</span>
+                        <span id="val-count" class="text-sm font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-3 py-1 rounded-full transition-colors">9 张</span>
                     </div>
-                    <input type="range" id="param-count" min="5" max="20" value="9" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
+                    <input type="range" id="param-count" min="5" max="20" value="9" class="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-600 dark:accent-blue-500">
                 </div>
 
                 <!-- Filename -->
@@ -273,14 +311,14 @@
                     <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block px-1">文件名</label>
                     <div class="flex gap-2">
                         <input type="text" id="param-filename" value="PixelShard_Secret" class="ios-input w-full px-6 py-3.5 text-sm font-medium" placeholder="Zip文件名">
-                        <button onclick="app.randomizeFilename()" class="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full font-medium transition-colors active:scale-95 flex items-center justify-center whitespace-nowrap" title="添加随机后缀">
+                        <button onclick="app.randomizeFilename()" class="px-5 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 rounded-full font-medium transition-colors active:scale-95 flex items-center justify-center whitespace-nowrap" title="添加随机后缀">
                             <span class="text-sm font-bold">随机</span>
                         </button>
                     </div>
                 </div>
 
                 <!-- Main Button -->
-                <button id="btn-generate" onclick="app.processGenerate()" disabled class="w-full py-4 bg-[#007aff] hover:bg-blue-600 active:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold rounded-full shadow-lg shadow-blue-500/30 transition-all flex justify-center items-center gap-2 text-lg active:scale-[0.98]">
+                <button id="btn-generate" onclick="app.processGenerate()" disabled class="w-full py-4 bg-[#007aff] hover:bg-blue-600 active:bg-blue-700 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:text-slate-100 dark:disabled:text-slate-500 disabled:cursor-not-allowed text-white font-bold rounded-full shadow-lg shadow-blue-500/30 transition-all flex justify-center items-center gap-2 text-lg active:scale-[0.98]">
                     <span>生成 & 下载</span>
                     <div class="spinner hidden" id="gen-spinner"></div>
                 </button>
@@ -297,22 +335,22 @@
         <div id="view-decrypt" class="hidden space-y-6">
             
             <div class="ios-card p-8 text-center space-y-6">
-                <div class="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-2 shadow-sm">
+                <div class="w-20 h-20 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center mx-auto mb-2 shadow-sm transition-colors">
                     <span class="material-symbols-rounded text-[40px]">lock_open</span>
                 </div>
                 
-                <h2 class="text-2xl font-bold text-slate-900">还原照片</h2>
+                <h2 class="text-2xl font-bold text-slate-900 dark:text-white">还原照片</h2>
                 
                 <div class="text-left space-y-5">
                     <!-- File Input -->
-                    <div class="bg-gray-50 rounded-[32px] p-5 border border-slate-200 hover:border-green-400 transition-colors cursor-pointer relative" onclick="document.getElementById('input-dec-files').click()">
+                    <div class="bg-gray-50 dark:bg-slate-800/50 rounded-[32px] p-5 border border-slate-200 dark:border-slate-700 hover:border-green-400 dark:hover:border-green-500 transition-colors cursor-pointer relative" onclick="document.getElementById('input-dec-files').click()">
                         <div class="flex items-center gap-4">
-                            <div class="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center text-slate-400 shrink-0">
+                            <div class="w-12 h-12 bg-white dark:bg-slate-700 rounded-full shadow-sm flex items-center justify-center text-slate-400 dark:text-slate-300 shrink-0 transition-colors">
                                 <span class="material-symbols-rounded text-[28px]">folder_zip</span>
                             </div>
                             <div>
-                                <div class="font-semibold text-slate-900 text-lg">选择碎片或 ZIP 档案</div>
-                                <div class="text-xs text-slate-500" id="dec-file-label">无需关心文件名顺序，支持直接导入 .zip 档案</div>
+                                <div class="font-semibold text-slate-900 dark:text-white text-lg">选择碎片或 ZIP 档案</div>
+                                <div class="text-xs text-slate-500 dark:text-slate-400" id="dec-file-label">无需关心文件名顺序，支持直接导入 .zip 档案</div>
                             </div>
                         </div>
                         <input type="file" id="input-dec-files" multiple accept="image/*,.zip" class="hidden">
@@ -320,13 +358,13 @@
 
                     <!-- Key Input -->
                     <div>
-                        <label class="text-xs text-slate-500 font-medium mb-1.5 block ml-1">解密密钥 (自动排序核心)</label>
+                        <label class="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1.5 block ml-1">解密密钥 (自动排序核心)</label>
                         <input type="number" id="dec-key" class="ios-input w-full px-6 py-3.5 font-mono text-lg tracking-widest text-center" placeholder="请输入密钥">
                     </div>
 
                     <!-- Invert Toggle -->
                     <div class="flex items-center justify-between px-2 py-2">
-                        <span class="text-base font-medium text-slate-700">反相还原</span>
+                        <span class="text-base font-medium text-slate-700 dark:text-slate-200">反相还原</span>
                         <input type="checkbox" id="dec-invert" class="ios-toggle">
                     </div>
 
@@ -339,8 +377,76 @@
 
             <!-- Result -->
             <div id="dec-result" class="hidden ios-card p-4">
-                <canvas id="canvas-result" class="w-full h-auto rounded-[24px] shadow-sm border border-slate-100 bg-[url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMUlEQVQ4T2N89uzZfwY8QFJSEp80A+OoAcMhYIDCQFwwGg4gWzE4HEBWAJ80AwM5AAAh8hB5E0k+xAAAAABJRU5ErkJggg==')]"></canvas>
-                <button onclick="app.downloadDecrypted()" class="mt-4 w-full py-3.5 bg-white border border-slate-200 text-blue-600 font-semibold rounded-full text-base shadow-sm active:bg-slate-50">保存到相册 (下载)</button>
+                <canvas id="canvas-result" class="w-full h-auto rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 bg-[url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMUlEQVQ4T2N89uzZfwY8QFJSEp80A+OoAcMhYIDCQFwwGg4gWzE4HEBWAJ80AwM5AAAh8hB5E0k+xAAAAABJRU5ErkJggg==')]"></canvas>
+                <button onclick="app.downloadDecrypted()" class="mt-4 w-full py-3.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-blue-600 dark:text-blue-400 font-semibold rounded-full text-base shadow-sm active:bg-slate-50 dark:active:bg-slate-600 transition-colors">保存到相册 (下载)</button>
+            </div>
+
+        </div>
+
+        <!-- ================= ABOUT VIEW ================= -->
+        <div id="view-about" class="hidden space-y-6">
+            
+            <!-- Card 1: App Info -->
+            <div class="ios-card p-8 flex flex-col items-start text-left">
+                <img src="https://pxs.btm-m.site/icon.png" alt="PixelShard Icon" class="w-20 h-20 rounded-[20px] shadow-lg mb-4">
+                <h2 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">PixelShard</h2>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1.5 font-medium">Developed by btm_m</p>
+                <div id="sys-info" class="mt-4 inline-block px-4 py-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-xs font-medium rounded-full transition-colors">
+                    Detecting Device...
+                </div>
+            </div>
+
+            <!-- Card 2: Links -->
+            <div class="ios-card overflow-hidden">
+                <div class="divide-y divide-slate-100 dark:divide-slate-700/50">
+                    <a href="https://github.com/ColdP/PixelShard/releases" target="_blank" class="flex items-center justify-between p-4 px-5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-rounded text-slate-400 dark:text-slate-500 group-hover:text-blue-500 transition-colors">android</span>
+                            <span class="text-[15px] font-medium text-slate-700 dark:text-slate-200">Android 版 PixelShard 下载</span>
+                        </div>
+                        <span class="material-symbols-rounded text-slate-300 dark:text-slate-600">chevron_right</span>
+                    </a>
+                    
+                    <a href="https://github.com/ColdP/PixelShard" target="_blank" class="flex items-center justify-between p-4 px-5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-rounded text-slate-400 dark:text-slate-500 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">code</span>
+                            <span class="text-[15px] font-medium text-slate-700 dark:text-slate-200">GitHub 项目页面</span>
+                        </div>
+                        <span class="material-symbols-rounded text-slate-300 dark:text-slate-600">chevron_right</span>
+                    </a>
+
+                    <a href="https://btm-m.site" target="_blank" class="flex items-center justify-between p-4 px-5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-rounded text-slate-400 dark:text-slate-500 group-hover:text-blue-500 transition-colors">language</span>
+                            <span class="text-[15px] font-medium text-slate-700 dark:text-slate-200">btm_m's Official Site</span>
+                        </div>
+                        <span class="material-symbols-rounded text-slate-300 dark:text-slate-600">chevron_right</span>
+                    </a>
+
+                    <a href="https://btm-m.live" target="_blank" class="flex items-center justify-between p-4 px-5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-rounded text-slate-400 dark:text-slate-500 group-hover:text-blue-500 transition-colors">book</span>
+                            <span class="text-[15px] font-medium text-slate-700 dark:text-slate-200">btm_m's Blog</span>
+                        </div>
+                        <span class="material-symbols-rounded text-slate-300 dark:text-slate-600">chevron_right</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Card 3: Privacy & Security -->
+            <div class="ios-card p-6">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="material-symbols-rounded text-green-500 text-[22px]">verified_user</span>
+                    <h3 class="text-base font-bold text-slate-900 dark:text-white tracking-tight">隐私保护以及安全性声明</h3>
+                </div>
+                <p class="text-[13px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                    您的所有图片处理及加解密操作均在本地设备的浏览器中离线完成。PixelShard 绝不会收集、存储或将您的照片、密钥或任何操作数据上传至任何外部服务器。全方位保障您的绝对隐私与数据安全。
+                </p>
+            </div>
+
+            <!-- Footer Small Text -->
+            <div class="text-left mt-10 mb-4 opacity-40 font-medium text-[11px] text-slate-600 dark:text-slate-300">
+                PixelShard © <span id="current-year"></span> btm_m
             </div>
 
         </div>
@@ -374,12 +480,20 @@
             state: {
                 sourceImage: null,
                 decryptedBlob: null,
-                decFiles: [] // 暂存解密用的 File 对象数组（用于直接解析 ZIP 或多选照片）
+                decFiles: []
             },
             
             els: {
-                tabs: { gen: document.getElementById('tab-gen'), dec: document.getElementById('tab-dec') },
-                views: { gen: document.getElementById('view-generate'), dec: document.getElementById('view-decrypt') },
+                tabs: { 
+                    generate: document.getElementById('tab-gen'), 
+                    decrypt: document.getElementById('tab-dec'),
+                    about: document.getElementById('tab-abt')
+                },
+                views: { 
+                    generate: document.getElementById('view-generate'), 
+                    decrypt: document.getElementById('view-decrypt'),
+                    about: document.getElementById('view-about')
+                },
                 gen: {
                     input: document.getElementById('input-file'),
                     preview: document.getElementById('preview-gen'),
@@ -408,7 +522,11 @@
 
             init() {
                 this.generateRandomKey();
+                this.updateThemeIcon();
+                this.setSystemInfo();
                 
+                document.getElementById('current-year').textContent = new Date().getFullYear();
+
                 this.els.gen.count.addEventListener('input', e => this.els.gen.countDisplay.textContent = e.target.value + " 张");
                 this.els.gen.input.addEventListener('change', e => this.handleFileSelect(e));
                 this.els.dec.input.addEventListener('change', (e) => this.handleDecFileSelect(e));
@@ -422,6 +540,100 @@
                         securityContainer.style.display = isSecure ? 'block' : 'none';
                     });
                 });
+            },
+
+            async setSystemInfo() {
+                let osDisplay = "";
+                let browserDisplay = "";
+                let hasUaData = false;
+
+                // 1. 尝试使用更新的 User-Agent Data API (能准确读取 Windows 11 及完整浏览器版本)
+                if (navigator.userAgentData) {
+                    try {
+                        // 请求额外的高熵数据：平台版本和完整版本号列表
+                        const uaData = await navigator.userAgentData.getHighEntropyValues(["platform", "platformVersion", "fullVersionList"]);
+                        
+                        let osName = uaData.platform || "Unknown OS";
+                        let osVersion = uaData.platformVersion || "";
+                        
+                        if (osName === "Windows") {
+                            const major = parseInt(osVersion.split('.')[0]);
+                            if (major >= 13) {
+                                osDisplay = `Windows 11 (${osVersion})`; // Windows 11 platformVersion 从 13.0.0 开始
+                            } else if (major > 0) {
+                                osDisplay = `Windows 10 (${osVersion})`;
+                            } else {
+                                osDisplay = `Windows (${osVersion})`;
+                            }
+                        } else {
+                            osDisplay = osVersion ? `${osName} (${osVersion})` : osName;
+                        }
+
+                        // 获取完整的浏览器版本号 (通过 fullVersionList 替代基础版的 brands)
+                        const fullVersions = uaData.fullVersionList || navigator.userAgentData.brands;
+                        const mainBrand = fullVersions.filter(b => !b.brand.includes("Not")).pop();
+                        
+                        if (mainBrand) {
+                            browserDisplay = `${mainBrand.brand} ${mainBrand.version}`;
+                        }
+                        
+                        hasUaData = !!(osDisplay && browserDisplay);
+                    } catch (e) {
+                        hasUaData = false;
+                    }
+                }
+
+                // 2. 对于不支持 UA Data 的浏览器 (Firefox/Safari) 退回正则处理
+                if (!hasUaData) {
+                    const ua = navigator.userAgent;
+                    
+                    let os = "Unknown OS";
+                    let v_os = "";
+                    if (/Windows NT ([\d.]+)/.test(ua)) {
+                        os = "Windows";
+                        const nt = RegExp.$1;
+                        if (nt === "10.0") v_os = "10/11"; // 老式 API 无法区分 Win10 和 Win11
+                        else if (nt === "6.3") v_os = "8.1";
+                        else if (nt === "6.2") v_os = "8";
+                        else if (nt === "6.1") v_os = "7";
+                        else v_os = `NT ${nt}`;
+                    } else if (/Mac OS X ([\d_]+)/.test(ua)) {
+                        os = "MacOS";
+                        v_os = RegExp.$1.replace(/_/g, '.');
+                    } else if (/Android ([\d.]+)/.test(ua)) {
+                        os = "Android";
+                        v_os = RegExp.$1;
+                    } else if (/OS ([\d_]+) like Mac OS X/.test(ua)) {
+                        os = "iOS";
+                        v_os = RegExp.$1.replace(/_/g, '.');
+                    } else if (/Linux/.test(ua)) {
+                        os = "Linux";
+                    }
+                    osDisplay = v_os ? `${os} (${v_os})` : os;
+
+                    let browser = "Unknown Browser";
+                    let v_browser = "";
+                    if (/Edg\/([\d.]+)/.test(ua)) { browser = "Edge"; v_browser = RegExp.$1; }
+                    else if (/Firefox\/([\d.]+)/.test(ua)) { browser = "Firefox"; v_browser = RegExp.$1; }
+                    else if (/OPR\/([\d.]+)/.test(ua) || /Opera\/([\d.]+)/.test(ua)) { browser = "Opera"; v_browser = RegExp.$1; }
+                    else if (/Chrome\/([\d.]+)/.test(ua)) { browser = "Chrome"; v_browser = RegExp.$1; }
+                    else if (/Version\/([\d.]+).*Safari/.test(ua)) { browser = "Safari"; v_browser = RegExp.$1; }
+                    else if (/MSIE ([\d.]+)/.test(ua) || /rv:([\d.]+)\) like Gecko/.test(ua)) { browser = "IE"; v_browser = RegExp.$1; }
+                    browserDisplay = v_browser ? `${browser} ${v_browser}` : browser;
+                }
+
+                document.getElementById('sys-info').textContent = `${osDisplay} / ${browserDisplay}`;
+            },
+
+            toggleTheme() {
+                const isDark = document.documentElement.classList.toggle('dark');
+                localStorage.theme = isDark ? 'dark' : 'light';
+                this.updateThemeIcon();
+            },
+
+            updateThemeIcon() {
+                const isDark = document.documentElement.classList.contains('dark');
+                document.getElementById('theme-icon').textContent = isDark ? 'dark_mode' : 'light_mode';
             },
 
             generateRandomKey() {
@@ -438,32 +650,30 @@
 
             switchTab(tab) {
                 const updateDOM = () => {
-                    const isGen = tab === 'generate';
-                    this.els.views.gen.classList.toggle('hidden', !isGen);
-                    this.els.views.dec.classList.toggle('hidden', isGen);
-                    
-                    // 根据图片更新的选中与未选中的 Tailwind 样式
-                    const activeClasses = ['bg-white', 'shadow-[0_4px_10px_rgba(0,0,0,0.08)]', 'text-blue-600'];
-                    const inactiveClasses = ['bg-transparent', 'shadow-none', 'text-slate-800'];
-
-                    if(isGen) {
-                        this.els.tabs.gen.classList.add(...activeClasses);
-                        this.els.tabs.gen.classList.remove(...inactiveClasses);
-                        this.els.tabs.dec.classList.add(...inactiveClasses);
-                        this.els.tabs.dec.classList.remove(...activeClasses);
-                    } else {
-                        this.els.tabs.dec.classList.add(...activeClasses);
-                        this.els.tabs.dec.classList.remove(...inactiveClasses);
-                        this.els.tabs.gen.classList.add(...inactiveClasses);
-                        this.els.tabs.gen.classList.remove(...activeClasses);
-                    }
+                    ['generate', 'decrypt', 'about'].forEach(t => {
+                        const isTarget = t === tab;
+                        this.els.views[t].classList.toggle('hidden', !isTarget);
+                        
+                        const tabEl = this.els.tabs[t];
+                        // 修正了这里：修改为了您所需的具有透明度的激活背景 class (bg-white/60 和 dark:bg-slate-700/60)
+                        const activeClasses = ['bg-white/60', 'dark:bg-slate-700/60', 'shadow-[0_4px_10px_rgba(0,0,0,0.08)]', 'text-blue-600', 'dark:text-blue-400'];
+                        const inactiveClasses = ['bg-transparent', 'shadow-none', 'text-slate-800', 'dark:text-slate-300', 'hover:text-slate-900', 'dark:hover:text-white'];
+                        
+                        if (isTarget) {
+                            tabEl.classList.add(...activeClasses);
+                            tabEl.classList.remove(...inactiveClasses);
+                        } else {
+                            tabEl.classList.add(...inactiveClasses);
+                            tabEl.classList.remove(...activeClasses);
+                        }
+                    });
                 };
 
                 // 使用现代浏览器的 View Transitions API 实现原生级丝滑切换
                 if (document.startViewTransition) {
                     document.startViewTransition(() => updateDOM());
                 } else {
-                    updateDOM(); // 降级处理：老浏览器直接切换
+                    updateDOM(); // 降级处理
                 }
             },
 
@@ -502,19 +712,15 @@
                         const extractedFiles = [];
                         let foundKey = false;
 
-                        // 遍历 ZIP 里的所有文件
                         for (const relativePath of Object.keys(zip.files)) {
                             const zipEntry = zip.files[relativePath];
                             if (zipEntry.dir) continue;
 
-                            // 检索 key.txt
                             if (relativePath.toLowerCase().endsWith('key.txt')) {
                                 const keyStr = await zipEntry.async('string');
                                 this.els.dec.key.value = keyStr.trim();
                                 foundKey = true;
-                            } 
-                            // 检索图片文件
-                            else if (relativePath.match(/\.(png|jpe?g|gif|webp)$/i)) {
+                            } else if (relativePath.match(/\.(png|jpe?g|gif|webp)$/i)) {
                                 const blob = await zipEntry.async('blob');
                                 const fileObj = new File([blob], relativePath.split('/').pop(), { type: blob.type || 'image/png' });
                                 extractedFiles.push(fileObj);
@@ -531,7 +737,6 @@
                         this.validateDecryptState();
                     }
                 } else {
-                    // 如果普通上传碎片图片，筛选出图片类型
                     this.state.decFiles = files.filter(f => f.type.startsWith('image/'));
                     this.els.dec.fileLabel.textContent = `已选择 ${this.state.decFiles.length} 张图片`;
                     this.validateDecryptState();
@@ -571,7 +776,6 @@
                     const layers = [];
                     for(let i=0; i<count; i++) layers.push(new Uint8ClampedArray(totalPixels * 4));
 
-                    // Algorithm
                     if (mode === 'secure') {
                         const indices = new Uint32Array(totalPixels);
                         for(let i=0; i<totalPixels; i++) indices[i] = i;
@@ -595,7 +799,6 @@
                             layers[layerIdx][targetPos*4+3] = a;
                         }
 
-                        // Secure Mode Marker Logic
                         for(let i=0; i<count; i++) {
                             if (i * chunkSize < totalPixels) {
                                 layers[i][0] = i; 
@@ -606,7 +809,6 @@
                         }
 
                     } else {
-                        // Classic
                         const rng = mulberry32(keyVal);
                         for(let i=0; i<totalPixels; i++) {
                             const a = pixels[i*4+3];
@@ -622,12 +824,10 @@
                         }
                     }
 
-                    // Zip
                     const zip = new JSZip();
                     const fname = this.els.gen.filename.value.trim() || 'PixelShard_Secret';
                     const folder = zip.folder(fname);
 
-                    // 如果处于安全模式且勾选了保存密钥
                     if (saveKey && mode === 'secure') {
                         folder.file("key.txt", keyVal.toString());
                     }
@@ -643,7 +843,7 @@
                                 folder.file(`${fname}_${idx+1}.png`, blob);
                                 const url = URL.createObjectURL(blob);
                                 const div = document.createElement('div');
-                                div.className = 'aspect-square bg-slate-100 rounded-[20px] overflow-hidden relative shadow-sm';
+                                div.className = 'aspect-square bg-slate-100 dark:bg-slate-800 rounded-[20px] overflow-hidden relative shadow-sm transition-colors';
                                 div.innerHTML = `<img src="${url}" class="w-full h-full object-cover rendering-pixelated">`;
                                 this.els.gen.gallery.appendChild(div);
                                 resolve();
@@ -674,7 +874,6 @@
                 try {
                     const keyVal = parseInt(this.els.dec.key.value);
 
-                    // 1. Load Images
                     let loadedImgs = await Promise.all(files.map(f => {
                         return new Promise((resolve) => {
                             const img = new Image();
@@ -687,7 +886,6 @@
                     const h = loadedImgs[0].height;
                     const totalPixels = w * h;
 
-                    // 2. SORT LOGIC
                     if (keyVal) {
                         const tempC = document.createElement('canvas');
                         tempC.width = 1; tempC.height = 1;
@@ -741,7 +939,6 @@
                     canvas.width = w; canvas.height = h;
                     const ctx = canvas.getContext('2d');
                     
-                    // 3. DECRYPT
                     if (!keyVal) {
                         ctx.clearRect(0,0,w,h);
                         loadedImgs.forEach(img => ctx.drawImage(img, 0, 0));
